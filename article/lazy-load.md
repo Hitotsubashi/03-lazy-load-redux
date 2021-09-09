@@ -22,12 +22,35 @@
 
 - `users`: Array<{id:string, group_id:string,name:string}>
 
-  `users`是指获取的开发人员列表，是一个数组，里面的是一个带`id`，`group_id`，`name`。`id`指该开发人员的唯一 ID，`group_id`指向分组的 ID，`name`指开发人员的名字。
+  `users`是指获取的开发人员列表，是一个数组，里面的元素都是一个包含三个属性：`id`，`group_id`，`name`的对象。其中`id`指该开发人员的唯一 ID，`group_id`指向分组的 ID，`name`指开发人员的名字。
 
 - `groups`：{id:name}
 
   `groups`指分组信息，是一个对象。键`id`指分组的唯一`ID`，值`name`指分组的名字。
 
-我们要把这个`groups`做到，在获取`users`展示到页面时，通过`user.group_id`从`groups`读取分组信息，继而引起`groups`异步加载数据更新自身。
+我们要把这个`groups`做到，在获取`users`且通过`table`组件展示到页面时，通过`user.group_id`从`groups`读取分组信息，继而引起`groups`异步加载数据更新自身。
 
 ### 1. 如何捕获读取行为
+
+我们可以利用`ES6`中的[Proxy](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Proxy)去做到捕获读取行为。已知`Proxy`的初始化方式如下所示：
+
+> const p = new Proxy(target, handler)
+
+其中的参数如下：
+
+- `target`：用`Proxy`包装的目标，必须是一个非基础类型的数据，例如数组、函数、对象。
+- `handler`：一个定义读取代理函数的对象，里面的各种代理函数会在读写操作时触发执行。
+
+我们把分组数据，也就是`groups`作为`target`，然后在`handler`中定义部分属性，然后把这两者作为`Proxy`构造函数的形参实例化出代理对象`groupProxy`。这个`groupProxy`赋予到`Redux state`中的`groups`变量上。如下图所示：
+
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/54f8af27aaf545c29b8a12ad562a3eda~tplv-k3u1fbpfcp-watermark.image)
+
+现在着重说一下`handler`中哪些属性帮助我们可以捕捉那些常用的**读取行为**。注意此处我们只需关注于捕捉读取行为而不是写入行为。
+
+1. `handler.has`：捕捉`in`行为，例如`"0" in groups`。
+1. `handler.get`：捕捉读取行为，例如`groups["0"]`、`groups.hasOwnProperty("0")`。
+1. `handler.ownKeys`：捕获`Object.keys`行为。
+
+而`Object.values`和`Object.entries`会触发`handler.ownKeys`和`handler.get`的执行。
+
+综上所述，当我们读取`Redux State`中的`groups`时，其实他是个`Proxy`实例，继而在读取操作中会触发我们在`handler`里定义的函数的执行。
