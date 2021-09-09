@@ -54,3 +54,5 @@
 而`Object.values`和`Object.entries`会触发`handler.ownKeys`和`handler.get`的执行。
 
 综上所述，当我们读取`Redux State`中的`groups`时，其实他是个`Proxy`实例，继而在读取操作中会触发我们在`handler`里定义的函数的执行。
+
+### 2. 捕获读取后要怎么做
