@@ -30,6 +30,8 @@
 
 我们要把这个`groups`做到，在获取`users`且通过`table`组件展示到页面时，通过`user.group_id`从`groups`读取分组信息，继而引起`groups`异步加载数据更新自身。
 
+// TODO 贴图片
+
 ### 1. 如何捕获读取行为
 
 我们可以利用`ES6`中的[Proxy](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Proxy)去做到捕获读取行为。已知`Proxy`的初始化方式如下所示：
@@ -56,3 +58,5 @@
 综上所述，当我们读取`Redux State`中的`groups`时，其实他是个`Proxy`实例，继而在读取操作中会触发我们在`handler`里定义的函数的执行。
 
 ### 2. 捕获读取行为后要怎么做
+
+捕获读取行为后，由于
