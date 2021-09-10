@@ -1,19 +1,16 @@
-import React, { useState,useEffect } from "react";
+import React, { useState } from "react";
 import { connect } from "react-redux";
 import { Table, Button, Space } from "antd";
 import {fetchUsers} from '../apis'
 
 const App = (props) => {
+  const {groups} = props
   const [users, setUsers] = useState([]);
 
   const getUsers = async()=>{
     const {users} = await fetchUsers()
     setUsers(users)
   }
-
-  useEffect(() => {
-    getUsers()
-  }, [])
 
   const columns = [
     {
@@ -22,10 +19,17 @@ const App = (props) => {
       align: "center",
       width: 100,
     },
+    {
+      title: "所属分组",
+      dataIndex: "group_id",
+      align: "center",
+      width: 100,
+      render:(group_id)=>groups[group_id]
+    },
   ];
   return (
     <Space direction="vertical" style={{ margin: 12 }}>
-      <Button type="primary">查询</Button>
+      <Button type="primary" onClick={getUsers}>查询</Button>
       <Table
         columns={columns}
         dataSource={users}
@@ -37,4 +41,8 @@ const App = (props) => {
   );
 };
 
-export default App;
+const mapStateToProps = ({groups}) => ({
+  groups
+})
+
+export default connect(mapStateToProps)(App);

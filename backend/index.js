@@ -9,12 +9,9 @@ const USERS = [
   }
 ]
 
-const GROUPS=[
-  {
-    id:'0',
-    name:'分组A'
-  }
-]
+const GROUPS={
+  '0':'分组A'
+}
 
 const PORT=8888
 
