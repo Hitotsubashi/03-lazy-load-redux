@@ -18,6 +18,12 @@ const GROUPS=[
 
 const PORT=8888
 
+app.use(function(req,res,next){
+  res.header("Access-Control-Allow-Origin", "*");
+  next()
+})
+
+
 app.get('/users', function (req, res) {
   res.send({users:USERS})
 })
@@ -27,5 +33,6 @@ app.get('/groups', function (req, res) {
     res.send({groups:GROUPS})
   }, 1000);
 })
+
 
 app.listen(PORT)

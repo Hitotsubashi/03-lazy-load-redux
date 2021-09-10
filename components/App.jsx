@@ -1,9 +1,19 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { connect } from "react-redux";
 import { Table, Button, Space } from "antd";
+import {fetchUsers} from '../apis'
 
 const App = (props) => {
   const [users, setUsers] = useState([]);
+
+  const getUsers = async()=>{
+    const {users} = await fetchUsers()
+    setUsers(users)
+  }
+
+  useEffect(() => {
+    getUsers()
+  }, [])
 
   const columns = [
     {
