@@ -1,8 +1,8 @@
-## 何为 LazyLoad
+## 1 何为 LazyLoad
 
 `LazyLoad`，用中文来说就是**延迟加载**或**惰性加载**。即一个变量，在被调用的时候，才开始加载自身的内容。这样子可以避免首屏加载时间过长导致的体验不佳。在日常开发中，我们经常会用到`LazyLoad`。例如`React`中的[React.lazy](https://zh-hans.reactjs.org/docs/code-splitting.html#reactlazy)，以及`Vue2`中的[异步组件:()=>import('./SomeComponent')](https://cn.vuejs.org/v2/guide/components-dynamic-async.html#%E5%A4%84%E7%90%86%E5%8A%A0%E8%BD%BD%E7%8A%B6%E6%80%81)，都是用于实现组件的延迟加载。而今天这篇文章讨论的是实现`Redux`的状态（`State`）中非基础类型数据的延迟加载。
 
-## `Redux Store`中使用延迟加载的好处
+## 2 `Redux Store`中使用延迟加载的好处
 
 已知`Redux State`存储的都是公共变量，而某些公共变量是通过异步获取的，如果某个组件（此处以`React`组件进行讨论）在交互中需要前面所说的公共变量例如分组`groups`时，则需要保证这些公共变量在组件进行交互之前就已被加载。
 
@@ -14,31 +14,33 @@
 
 而当我们使用延迟加载，且把延迟加载的逻辑写在与`Redux`相关的操作中时，就可以很好避免上面的情况。
 
-<!-- 而且，无论是第一点还是第二点都面临一个问题，**不能保证`Redux State`中的状态是最新的**。我们来设定一个场景：在一个商品网站中，`Redux State`中存在一个存储标签的对象类型的变量`tags`，这个`tags`需要从后端获取，而每个商品都会被附上`tags`中的其中一个标签。而`tags`是会随着其他商家的新增标签而变化的，那么在不能保证`Redux State`中的`tags`和后端数据库中的`tags`保持一致的情况下，则会出现你浏览新商品时，会存在该商品的标签显示不全的情况。 -->
+而且，无论是第一点还是第二点都面临一个问题，**不能保证`Redux State`中的状态是最新的**。我们来设定一个场景：在一个商品网站中，`Redux State`中存在一个存储标签的对象类型的变量`tags`，这个`tags`需要从后端获取，而每个商品都会被附上`tags`中的其中一个标签。而`tags`是会随着其他商家的新增标签而变化的，那么在不能保证`Redux State`中的`tags`和后端数据库中的`tags`保持一致的情况下，则会出现你浏览新商品时，会存在该商品的标签显示不全的情况。
 
-## 延迟加载的实现思路
+而此处用的延迟加载，也可以完美解决上面的**同步更新的问题**（这么说好像就不叫作延时加载了，不过其实是这个延时加载的思路顺便解决了这个**同步更新的问题**）。
+
+## 3 延迟加载的实现思路
 
 接下来我们假设一个需求，在一个公司内部的网站（类似于工单管理系统）上，我们需要查询获取开发人员`users`的相关信息，而每个开发人员都属于一个**分组**中。记录这些**分组**的是一个存储在`Redux State`中的对象类型的变量`groups`。其数据关系如下：
 
-- `users`: Array<{id:string, group_id:string,name:string}>
+- `users`: ***Array<{id:string, group_id:string,name:string}>***
 
   `users`是指获取的开发人员列表，是一个数组，里面的元素都是一个包含三个属性：`id`，`group_id`，`name`的对象。其中`id`指该开发人员的唯一 ID，`group_id`指向分组的 ID，`name`指开发人员的名字。
 
-- `groups`：{id:name}
+- `groups`：***{id:name}***
 
   `groups`指分组信息，是一个对象。键`id`指分组的唯一`ID`，值`name`指分组的名字。
 
-我们要把这个`groups`做到，在获取`users`且通过`table`组件展示到页面时，通过`user.group_id`从`groups`读取分组信息，继而引起`groups`异步加载数据更新自身。
+接下来要做到的效果时，当通过异步请求获取`users`且通过`table`组件展示到页面时，通过`user.group_id`从`groups`读取分组信息，继而引起`groups`异步加载数据更新自身。效果如下所示：
 
-// TODO 贴图片
+![redux-lazy-load.gif](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0a522384615e487fb050efb0f06a41a3~tplv-k3u1fbpfcp-watermark.image)
 
-### 1. 如何捕获读取行为
+### 3.1 如何捕获读取行为
 
 我们可以利用`ES6`中的[Proxy](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Proxy)去做到捕获读取行为。已知`Proxy`的初始化方式如下所示：
 
 > const p = new Proxy(target, handler)
 
-其中的参数如下：
+其中实例化需要的参数如下：
 
 - `target`：用`Proxy`包装的目标，必须是一个非基础类型的数据，例如数组、函数、对象。
 - `handler`：一个定义读取代理函数的对象，里面的各种代理函数会在读写操作时触发执行。
@@ -57,6 +59,219 @@
 
 综上所述，当我们读取`Redux State`中的`groups`时，其实他是个`Proxy`实例，继而在读取操作中会触发我们在`handler`里定义的函数的执行。
 
-### 2. 捕获读取行为后要怎么做
+### 3.2 捕获读取行为后要怎么做
 
-捕获读取行为后，由于
+捕获读取行为后，要分两种情况考虑：
+
+1. **`Redux State`的`groups`中没有`user.group_id`对应的分组时**：即该`groups`没有加载或者数据和后台不一致。因此要做两件事：
+  - 往后端发出请求获取`groups`。获取数据后生成新的`groupProxy`替换`Redux State`的`groups`。`Redux State`的变化会触发`React`组件重新渲染（`react-redux`库中的`connect`函数会让`React`组件在所注入的`State`变量更新时重新渲染），渲染过程中再次往`Redux State`的`groups`读取数据时，此时已有`user.group_id`对应的分组，就会发生下面第二点。
+  - 往组件返回一个临时值。
+
+2.  **`Redux State`的`groups`中有`user.group_id`对应的分组时**：则直接返回该分组。
+
+综合上面的过程可有下面的流程图：
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9c6e01796eca4294a7e2549ac195ffe3~tplv-k3u1fbpfcp-watermark.image)
+
+## 4 用redux-thunk实现lazy-load
+
+在本次需求中，后端有两个接口，一个是请求`users`的接口（`http://localhost:8888/users`），另一个是请求`groups`的接口（`http://localhost:8888/groups`）。后端的代码如下所示：
+
+```js
+var express = require('express')
+var app = express()
+
+// users数据
+const USERS = [
+  {
+    id:'0',
+    name:'用户A',
+    group_id:'0'
+  },
+  {
+    id:'1',
+    name:'用户B',
+    group_id:'0'
+  },
+  {
+    id:'2',
+    name:'用户C',
+    group_id:'1'
+  }
+]
+
+// groups数据
+const GROUPS={
+  '0':'分组A',
+  '1':'分组C'
+}
+
+const PORT=8888
+
+// 通过中间件解决浏览器的同源策略问题
+app.use(function(req,res,next){
+  // 响应头设置Access-Control-Allow-Origin字段
+  res.header("Access-Control-Allow-Origin", "*");
+  next()
+})
+
+app.get('/users', function (req, res) {
+  res.send({users:USERS})
+})
+
+app.get('/groups', function (req, res) {
+  // 此处设置延迟1s后才响应数据是为了能够明显地看到groups于users后加载的效果
+  setTimeout(() => {
+    res.send({groups:GROUPS})
+  }, 1000);
+})
+
+app.listen(PORT)
+```
+
+我们接下来试一下用`redux-thunk`实现上面的逻辑。首先先展示请求函数
+
+```js
+export const fetchUsers = ()=>{
+  return fetch('http://localhost:8888/users').then(res=>res.json())
+}
+
+// 用于避免多个读取行为触发fetchGroups多次执行
+const loading = false
+export const fetchGroups = ()=>{
+  if(loading) return
+  loading = true
+  return fetch('http://localhost:8888/groups').then(res=>{
+    loading = false
+    return res.json()
+  })
+}
+```
+
+接下来重点看一下`store`的编写，首先看一下`action`中的内容：
+
+**action**
+```js
+import {fetchGroups} from '../../apis'
+
+// 设置Redux State中的groups
+export const SET_GROUPS=(groups)=>({
+  type:'SET_GROUPS',
+  groups
+})
+
+// 生成groupProxy且派发SET_GROUPS
+export const MAKE_GROUPS_PROXY = (groups)=>(dispatch)=>{
+  const groupProxy = new Proxy(groups,{
+    get(target, property){
+      if(!target[property]){
+        dispatch(REQUEST_GROUPS())
+        return '加载中'
+      }
+      return target[property]
+    }
+  })
+  dispatch(SET_GROUPS(groupProxy))
+}
+
+// 请求groups且派发MAKE_GROUPS_PROXY
+export const REQUEST_GROUPS = ()=>async (dispatch) => { 
+  const {groups} = await fetchGroups()
+  dispatch(MAKE_GROUPS_PROXY(groups))
+}
+```
+
+重点说一下`MAKE_GROUPS_PROXY`。他是一个纯函数，可是却写成`redux-thunk`中**异步`Action Creator`**的形式。是因为这里需要`store.dispatch`用于派发`SET_GROUPS`生成得`Action`。上面的`Action Creator`的派发流程如下所示：
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/192506264b75451dad27f3826fb88461~tplv-k3u1fbpfcp-watermark.image)
+
+然后看一下`reducer`的代码：
+
+```js
+const reducer = (state,action)=>{
+  switch (action.type) {
+    case 'SET_GROUPS':
+      return {groups:action.groups}
+    default:
+      return state
+  }
+}
+
+export default reducer
+```
+
+最后看生成`store`的逻辑：
+
+```js
+import { createStore,applyMiddleware } from 'redux'
+import reducer from './reducer'
+import thunk from 'redux-thunk'
+import {MAKE_GROUPS_PROXY} from './action'
+
+const store = createStore(reducer,{groups:{}}, applyMiddleware(thunk))
+/** 
+ * 派发MAKE_GROUPS_PROXY({})更新State中的groups，
+ * 原本groups是一个纯对象，此处要把他替换成代理实例
+ */
+store.dispatch(MAKE_GROUPS_PROXY({}))
+
+export default store
+```
+
+最后在展示主页面逻辑：
+**App.jsx**
+```js
+import React, { useState } from "react";
+import { connect } from "react-redux";
+import { Table, Button, Space } from "antd";
+import {fetchUsers} from '../apis'
+import {LoadingOutlined  } from '@ant-design/icons'
+
+const App = (props) => {
+  const {groups} = props
+  const [users, setUsers] = useState([]);
+
+  const getUsers = async()=>{
+    const {users} = await fetchUsers()
+    setUsers(users)
+  }
+
+  const columns = [
+    {
+      title: "名字",
+      dataIndex: "name",
+      align: "center",
+      width: 100,
+    },
+    {
+      title: "所属分组",
+      dataIndex: "group_id",
+      align: "center",
+      width: 100,
+      render:(group_id)=>groups[group_id]==='加载中'?<LoadingOutlined />:groups[group_id]
+    },
+  ];
+  return (
+    <Space direction="vertical" style={{ margin: 12 }}>
+      <Button type="primary" onClick={getUsers}>查询</Button>
+      <Table
+        columns={columns}
+        dataSource={users}
+        bordered
+        title={() => "人员信息"}
+        rowKey="id"
+      ></Table>
+    </Space>
+  );
+};
+
+const mapStateToProps = ({groups}) => ({
+  groups
+})
+
+export default connect(mapStateToProps)(App);
+```
+
+就可以达到下面的效果：
+
+![redux-lazy-load.gif](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0a522384615e487fb050efb0f06a41a3~tplv-k3u1fbpfcp-watermark.image)
