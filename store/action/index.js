@@ -9,7 +9,7 @@ export const MAKE_GROUPS_PROXY = (groups)=>(dispatch)=>{
   const groupProxy = new Proxy(groups,{
     get(target, property){
       if(!(typeof property==='string'&&/\d+/.test(property))) return target[property]
-      if(!target[property]){
+      if(!(property in target)){
         dispatch(REQUEST_GROUPS())
         return '加载中'
       }

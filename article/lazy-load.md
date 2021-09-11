@@ -171,7 +171,7 @@ export const MAKE_GROUPS_PROXY = (groups)=>(dispatch)=>{
        * 如果被代理的对象target中不存在该分组，则返回“加载中”作为临时值，且派发REQUEST_GROUPS()
        * 触发groups同步后端的数据
        */
-      if(!target[property]){
+      if(!(property in target)){
         dispatch(REQUEST_GROUPS())
         return '加载中'
       }
