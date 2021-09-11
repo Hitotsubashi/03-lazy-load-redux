@@ -138,15 +138,9 @@ export const fetchUsers = ()=>{
   return fetch('http://localhost:8888/users').then(res=>res.json())
 }
 
-// 用于避免多个读取行为触发fetchGroups多次执行
 const loading = false
 export const fetchGroups = ()=>{
-  if(loading) return
-  loading = true
-  return fetch('http://localhost:8888/groups').then(res=>{
-    loading = false
-    return res.json()
-  })
+  return fetch('http://localhost:8888/groups').then(res=>res.json())
 }
 ```
 
@@ -166,19 +160,36 @@ export const SET_GROUPS=(groups)=>({
 export const MAKE_GROUPS_PROXY = (groups)=>(dispatch)=>{
   const groupProxy = new Proxy(groups,{
     get(target, property){
+      /**
+       * 对property的类型和值进行校验，
+       * 因为在打开chrome的redux-devtools进行调试时，redux-devtools会调用
+       * groups的constructor和Symbol(Symbol.toStringTag)等进行监听更新，我们没必要处理
+       * 那些处于原型链上的属性的调用，所以针对property进行类型校验看传入的是否为group_id
+       */
+      if(!(typeof property==='string'&&/\d+/.test(property))) return target[property]
+      /**
+       * 如果被代理的对象target中不存在该分组，则返回“加载中”作为临时值，且派发REQUEST_GROUPS()
+       * 触发groups同步后端的数据
+       */
       if(!target[property]){
         dispatch(REQUEST_GROUPS())
         return '加载中'
       }
+      // 如果被代理的对象target中存在该分组，则直接返回该值
       return target[property]
     }
   })
   dispatch(SET_GROUPS(groupProxy))
 }
 
+// 用于避免多个读取行为触发REQUEST_GROUPS多次执行
+let loading = false
 // 请求groups且派发MAKE_GROUPS_PROXY
 export const REQUEST_GROUPS = ()=>async (dispatch) => { 
+  if(loading) return
+  loading = true
   const {groups} = await fetchGroups()
+  loading = false
   dispatch(MAKE_GROUPS_PROXY(groups))
 }
 ```
@@ -213,7 +224,7 @@ import {MAKE_GROUPS_PROXY} from './action'
 const store = createStore(reducer,{groups:{}}, applyMiddleware(thunk))
 /** 
  * 派发MAKE_GROUPS_PROXY({})更新State中的groups，
- * 原本groups是一个纯对象，此处要把他替换成代理实例
+ * 原本groups在上面的store初始化过程中设定为一个纯对象，此处要把他替换成代理实例
  */
 store.dispatch(MAKE_GROUPS_PROXY({}))
 

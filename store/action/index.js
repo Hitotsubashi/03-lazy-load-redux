@@ -8,6 +8,7 @@ export const SET_GROUPS=(groups)=>({
 export const MAKE_GROUPS_PROXY = (groups)=>(dispatch)=>{
   const groupProxy = new Proxy(groups,{
     get(target, property){
+      if(!(typeof property==='string'&&/\d+/.test(property))) return target[property]
       if(!target[property]){
         dispatch(REQUEST_GROUPS())
         return '加载中'
@@ -18,7 +19,11 @@ export const MAKE_GROUPS_PROXY = (groups)=>(dispatch)=>{
   dispatch(SET_GROUPS(groupProxy))
 }
 
-export const REQUEST_GROUPS = ()=>async (dispatch) => { 
+let loading = false
+export const REQUEST_GROUPS = ()=>async (dispatch) => {
+  if(loading) return
+  loading = true
   const {groups} = await fetchGroups()
+  loading = false
   dispatch(MAKE_GROUPS_PROXY(groups))
 }
