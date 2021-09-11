@@ -6,11 +6,22 @@ const USERS = [
     id:'0',
     name:'用户A',
     group_id:'0'
+  },
+  {
+    id:'1',
+    name:'用户B',
+    group_id:'0'
+  },
+  {
+    id:'2',
+    name:'用户C',
+    group_id:'1'
   }
 ]
 
 const GROUPS={
-  '0':'分组A'
+  '0':'分组A',
+  '1':'分组C'
 }
 
 const PORT=8888

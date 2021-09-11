@@ -8,8 +8,6 @@ export const SET_GROUPS=(groups)=>({
 export const MAKE_GROUPS_PROXY = (groups)=>(dispatch)=>{
   const groupProxy = new Proxy(groups,{
     get(target, property){
-      console.log('target',property);
-      console.log('property',property);
       if(!target[property]){
         dispatch(REQUEST_GROUPS())
         return '加载中'
