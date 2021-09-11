@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { connect } from "react-redux";
 import { Table, Button, Space } from "antd";
 import {fetchUsers} from '../apis'
+import {LoadingOutlined  } from '@ant-design/icons'
 
 const App = (props) => {
   const {groups} = props
@@ -24,7 +25,7 @@ const App = (props) => {
       dataIndex: "group_id",
       align: "center",
       width: 100,
-      render:(group_id)=>groups[group_id]
+      render:(group_id)=>groups[group_id]==='加载中'?<LoadingOutlined />:groups[group_id]
     },
   ];
   return (
