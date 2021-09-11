@@ -293,3 +293,86 @@ export default connect(mapStateToProps)(App);
 
 ## 5 用redux-saga实现lazy-load
 
+当然，有些项目里用`redux-saga`而不是`redux-thunk`。因此，这里也提供`redux-saga`下实现`lazy-load`的做法。
+
+不过要分析一下，`redux-saga`中把所有不纯的操作（即非纯函数）都要写成`saga`来处理。而我们是需要在`makeGroupProxy`（生成`group`的代理实例）的方法里，让`handler`中的`get`属性，在读取失败的情况下触发响应的`saga`执行。我们知道，外部触发`saga`执行通常就有`dispatch`相应的`action`了，而我们无法像`redux-thunk`一样在`makeGroupProxy`内部拿到`store.dispatch`。那么，还有另外一种方式让我们在外部触发`saga`执行吗？答案是有的：`eventChannel`。
+
+之前写过一篇[文章](https://juejin.cn/post/6996879819472371719#heading-8)介绍`eventChannel`的用法，我这里就不再重复了。在这个的基础上，直接上`redux-saga`版本的`lazy-load`实现代码：
+
+在上面的`redux-thunk`的代码中，我们不再需要`action`方面的代码，取而代之的是新建一个`saga`并在里面开始编写：
+
+**saga**
+```js
+import { eventChannel, buffers } from 'redux-saga';
+import {fetchGroups} from '../../apis'
+import {call,take,put} from 'redux-saga/effects'
+
+// trigger用于触发saga，在Proxy实例化过程中的handler里面调用
+let trigger = null
+
+export const makeGroupProxy = (target={})=>{
+  return new Proxy(target, {
+    get: (target, property) => {
+      if(!(typeof property==='string'&&/\d+/.test(property))) return target[property]
+      if (!(property in target)) {
+        // 如果trigger是函数类型，则调用触发saga执行，继而触发groups的更新
+        if (trigger instanceof Function) {
+          trigger({});
+        }
+        return '加载中';
+      }
+      return target[property];
+    }
+  });
+}
+
+// 用于生成eventChannel
+const makeRefreshGroupChannel = () => {
+  return eventChannel((emitter) => {
+    // emitter赋予给trigger
+    trigger = emitter;
+    return () => {};
+    /**此处buffers.dropping(1)为1代表eventChannel通道的缓存里只允许接受外部事件源的数量为1
+     * 这样子就可以避免多个读取事件失败时，emitter多次被调用导致请求groups重复 
+     */
+  }, buffers.dropping(1));
+};
+
+export function* watchGroupSaga(){
+  // 生成eventChannel通道并监听
+  const chan = yield call(makeRefreshGroupChannel);
+  try {
+    // 当trigger被调用时，进入while语句
+    while (yield take(chan)) {
+      const {groups} = yield call(fetchGroups);
+      if (groups) {
+        yield put({
+          type: 'SET_GROUPS',
+          // 生成groupProxy后更新到Redux State的groups上
+          groups: makeGroupProxy(groups),
+        });
+      }
+    }
+  } finally {
+    console.warn('watchGroup end.');
+  }
+}
+```
+
+最后在生成`store`的逻辑上对应改动：
+
+```js
+import { createStore,applyMiddleware } from 'redux'
+import reducer from './reducer'
+import createSagaMiddleware from "redux-saga";
+import {makeGroupProxy,watchGroupSaga} from './saga'
+
+const sagaMiddleware = createSagaMiddleware();
+const store = createStore(reducer,{groups:makeGroupProxy({})}, applyMiddleware(sagaMiddleware))
+// 执行watchGroupSaga开启对eventChannel的监听
+sagaMiddleware.run(watchGroupSaga);
+
+export default store
+```
+
+就只需还这两处，其余的代码和`redux-thunk`的一致，既可实现开头的gif例子中`groups`的懒加载。
