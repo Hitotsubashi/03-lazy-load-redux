@@ -1,8 +1,20 @@
-## 1 何为 LazyLoad
+---
+theme: smartblue
+highlight: androidstudio
+---
 
-`LazyLoad`，用中文来说就是**延迟加载**或**惰性加载**。即一个变量，在被调用的时候，才开始加载自身的内容。这样子可以避免首屏加载时间过长导致的体验不佳。在日常开发中，我们经常会用到`LazyLoad`。例如`React`中的[React.lazy](https://zh-hans.reactjs.org/docs/code-splitting.html#reactlazy)，以及`Vue2`中的[异步组件:()=>import('./SomeComponent')](https://cn.vuejs.org/v2/guide/components-dynamic-async.html#%E5%A4%84%E7%90%86%E5%8A%A0%E8%BD%BD%E7%8A%B6%E6%80%81)，都是用于实现组件的延迟加载。而今天这篇文章讨论的是实现`Redux`的状态（`State`）中非基础类型数据的延迟加载。
+# 1 何为 LazyLoad
 
-## 2 `Redux Store`中使用延迟加载的好处
+`LazyLoad`，用中文来说就是**延迟加载**或**惰性加载**。即一个变量，在被调用的时候，才开始加载自身的内容。这样子可以避免首屏加载时间过长导致的体验不佳。在日常开发中，我们经常会用到`LazyLoad`。例如`React`中的[React.lazy](https://zh-hans.reactjs.org/docs/code-splitting.html#reactlazy)，以及`Vue2`中的[异步组件:()=>import('./SomeComponent')](https://cn.vuejs.org/v2/guide/components-dynamic-async.html#%E5%A4%84%E7%90%86%E5%8A%A0%E8%BD%BD%E7%8A%B6%E6%80%81)，都是用于实现组件的延迟加载。而今天这篇文章讨论的是**实现`Redux`的状态（`State`）中非基础类型数据的延迟加载。**
+
+阅读这篇文章，你将会：
+
+1. 如何借助`redux-thunk`中实现数据延时加载
+2. 如何借助`redux-saga`中实现数据延时加载
+
+这两种方式，运用在项目里，可以大大减少我们重复写`dispatch`语句的次数和数量。以降低项目的复杂程度。
+
+# 2 `Redux Store`中使用延迟加载的好处
 
 已知`Redux State`存储的都是公共变量，而某些公共变量是通过异步获取的，如果某个组件（此处以`React`组件进行讨论）在交互中需要前面所说的公共变量例如分组`groups`时，则需要保证这些公共变量在组件进行交互之前就已被加载。
 
@@ -20,7 +32,7 @@
 
 而此处用的延迟加载，也可以完美解决上面的**同步更新的问题**（这么说好像就不叫作延时加载了，不过其实是这个延时加载的思路顺便解决了这个**同步更新的问题**）。
 
-## 3 延迟加载的实现思路
+# 3 延迟加载的实现思路
 
 接下来我们假设一个需求，在一个公司内部的网站（类似于工单管理系统）上，我们需要查询获取开发人员`users`的相关信息，而每个开发人员都属于一个**分组**中。记录这些**分组**的是一个存储在`Redux State`中的对象类型的变量`groups`。其数据关系如下：
 
@@ -36,7 +48,7 @@
 
 ![redux-lazy-load.gif](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0a522384615e487fb050efb0f06a41a3~tplv-k3u1fbpfcp-watermark.image)
 
-### 3.1 如何捕获读取行为
+## 3.1 如何捕获读取行为
 
 我们可以利用`ES6`中的[Proxy](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Proxy)去做到捕获读取行为。已知`Proxy`的初始化方式如下所示：
 
@@ -61,7 +73,7 @@
 
 综上所述，当我们读取`Redux State`中的`groups`时，其实他是个`Proxy`实例，继而在读取操作中会触发我们在`handler`里定义的函数的执行。
 
-### 3.2 捕获读取行为后要怎么做
+## 3.2 捕获读取行为后要怎么做
 
 捕获读取行为后，要分两种情况考虑：
 
@@ -75,7 +87,7 @@
 
 ![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9c6e01796eca4294a7e2549ac195ffe3~tplv-k3u1fbpfcp-watermark.image)
 
-## 4 用redux-thunk实现lazy-load
+# 4 用redux-thunk实现lazy-load
 
 在本次需求中，后端有两个接口，一个是请求`users`的接口（`http://localhost:8888/users`），另一个是请求`groups`的接口（`http://localhost:8888/groups`）。后端的代码如下所示：
 
@@ -291,7 +303,7 @@ export default connect(mapStateToProps)(App);
 
 [项目地址](https://github.com/Hitotsubashi/03-lazy-load-redux)
 
-## 5 用redux-saga实现lazy-load
+# 5 用redux-saga实现lazy-load
 
 当然，有些项目里用`redux-saga`而不是`redux-thunk`。因此，这里也提供`redux-saga`下实现`lazy-load`的做法。
 
@@ -375,6 +387,14 @@ sagaMiddleware.run(watchGroupSaga);
 export default store
 ```
 
-就只需还这两处，其余的代码和`redux-thunk`的一致，既可实现开头的gif例子中`groups`的懒加载。
+就只需还这两处，其余的代码和`redux-thunk`的一致，既可实现开头的例子中`groups`的延时加载。
 
 [项目地址](https://github.com/Hitotsubashi/03-lazy-load-redux/tree/feature_redux-saga)
+
+# 6 拓展
+
+其实`Proxy`的用法有很多，我在一年前就写过利用`Proxy`来实现惰性加载大型第三方库的[文章](https://juejin.cn/post/6857838112601702408)，有兴趣的可以看一下。
+
+# 7 后记
+
+之后写的文章都会是结合项目实际经历来写，有什么不懂的欢迎可以评论留言喔。
