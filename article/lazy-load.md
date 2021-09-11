@@ -332,10 +332,10 @@ const makeRefreshGroupChannel = () => {
     // emitter赋予给trigger
     trigger = emitter;
     return () => {};
-    /**此处buffers.dropping(1)为1代表eventChannel通道的缓存里只允许接受外部事件源的数量为1
+    /**此处buffers.dropping(0)代表eventChannel通道不允许缓存没来得及处理的外部事件源
      * 这样子就可以避免多个读取事件失败时，emitter多次被调用导致请求groups重复 
      */
-  }, buffers.dropping(1));
+  }, buffers.dropping(0));
 };
 
 export function* watchGroupSaga(){
@@ -376,3 +376,5 @@ export default store
 ```
 
 就只需还这两处，其余的代码和`redux-thunk`的一致，既可实现开头的gif例子中`groups`的懒加载。
+
+[项目地址](https://github.com/Hitotsubashi/03-lazy-load-redux/tree/feature_redux-saga)

@@ -23,7 +23,7 @@ const makeRefreshGroupChannel = () => {
   return eventChannel((emitter) => {
     trigger = emitter;
     return () => {};
-  }, buffers.dropping(1));
+  }, buffers.dropping(0));
 };
 
 export function* watchGroupSaga(){
